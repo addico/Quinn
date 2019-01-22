@@ -1,10 +1,15 @@
 defmodule Quinn.XmlParser do
+  @moduledoc """
+  Contains functions for parsing XML documents.
 
-  def parse(xml) do
+  These are for internal use. The methods on [Quinn](Quinn.html) should be used.
+  """
+
+  def parse(xml, options \\ %{}) do
     :erlang.bitstring_to_list(xml)
     |> :xmerl_scan.string
     |> elem(0)
-    |> parse_record
+    |> parse_record(options)
   end
 
   defp combine_values([]), do: []
@@ -17,13 +22,14 @@ defmodule Quinn.XmlParser do
     end
   end
 
-  defp parse_record({:xmlElement, name, _, _, _, _, _, attributes, elements, _, _, _}) do
-    value = combine_values(parse_record(elements))
+  defp parse_record({:xmlElement, name, _, _, _, _, _, attributes, elements, _, _, _}, options) do
+    value = combine_values(parse_record(elements, options))
+    name = parse_name(name, options)
     [%{name: name, attr: parse_attribute(attributes), value: value}]
   end
 
-  defp parse_record({:xmlText, _, _, _, value, _}) do
-    string_value = String.strip(to_string(value))
+  defp parse_record({:xmlText, _, _, _, value, _}, _) do
+    string_value = String.trim(to_string(value))
     if (String.length(string_value) > 0) do
       [string_value]
     else
@@ -31,12 +37,18 @@ defmodule Quinn.XmlParser do
     end
   end
 
-  defp parse_record([]), do: []
+  defp parse_record({:xmlComment, _, _, _, value}, options) do
+    if options[:comments] do
+      [%{name: :comments, attr: [], value: String.trim(to_string(value))}]
+    else
+      []
+    end
+  end
 
-  defp parse_record([element]), do: parse_record(element)
+  defp parse_record([], _), do: []
 
-  defp parse_record([head | tail]) do
-    parse_record(head) ++ parse_record(tail)
+  defp parse_record([head | tail], options) do
+    parse_record(head, options) ++ parse_record(tail, options)
   end
 
   defp parse_attribute([]), do: []
@@ -45,11 +57,18 @@ defmodule Quinn.XmlParser do
     [{name, to_string(value)}]
   end
 
-  defp parse_attribute([attribute]) do
-    parse_attribute(attribute)
-  end
-
   defp parse_attribute([head | tail]) do
     parse_attribute(head) ++ parse_attribute(tail)
   end
+
+  defp parse_name(name, %{strip_namespaces: true}) do
+    name
+    |> to_string
+    |> String.split(":")
+    |> List.last
+    |> Macro.underscore
+    |> String.to_atom
+  end
+
+  defp parse_name(name, _), do: name
 end

@@ -1,7 +1,8 @@
 Quinn
 =====
 
-A simple XML parser in Elixir aims to parse rss/atom feeds. I'm currently using `xmerl_scan.string` to parse the xml.
+A simple XML parser in Elixir aims to parse rss/atom feeds. I'm currently
+using `xmerl_scan.string` to parse the xml. I'm a bit busy so I may take awhile to response and/or update. Feel free to send a pull request. Otherwise, check out [hex](https://hex.pm/packages?search=xml&sort=downloads) for other XML parsers that may be better maintained.
 
 # Parsing
 
@@ -15,6 +16,38 @@ Calling parse on the xml will produce
    value: [%{attr: [short_name: "yah"], name: :title, value: ["Yahoo"]},
            %{attr: [], name: :"title:content", value: ["Bing"]}]}]
 ```
+### Parsing without namespaces(key prefix)
+```elixir
+xml = "<m:return xsi:type="d4p1:Answer">
+      <d4p1:Title> Title </d4p1:Title>
+      <d4p1:Description> Description </d4p1:Description>
+     </m:return>"
+
+Quinn.parse(xml, %{strip_namespaces: true})
+```
+
+Calling parse on the xml will produce
+```elixir
+[%{attr: ["xsi:type": "d4p1:Answer"],
+   name: :return,
+   value: [%{attr: [], name: :title, value: ["Title"]},
+%{attr: [], name: :description, value: ["Description"]}]}]
+```
+
+### Parsing comments
+```elixir
+xml = ~s(<head><title short_name = "yah">Yahoo</title><!--- <test pattern="SECAM" /><test pattern="NTSC" /> --></head>)
+result = Quinn.parse(xml, %{comments: true})
+```
+The xml above will give you this. Note the name is `comments`.
+
+```elixir
+[%{attr: [],
+   name: :head,
+   value: [%{attr: [short_name: "yah"], name: :title, value: ["Yahoo"]},
+           %{attr: [], name: :comments, value: ~s(- <test pattern="SECAM" /><test pattern="NTSC" />)}]}]
+```
+
 # Finding nodes
 
 Suppose you want to find all the body nodes from this structure:
